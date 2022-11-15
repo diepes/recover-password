@@ -2,10 +2,26 @@
 import os , random , subprocess, sys, datetime, time
 import pexpect
 
-'''Pes modify '''
+'''Pes modify uncomment required decryption '''
+## COMMANDS 1 openssl encrypted
+# command = 'openssl rsa -in mysecuresite.com.key -out tmp.key -passin pass:%s'
 
-lenmin=2
-lenmax=6
+## COMM
+command = '/usr/bin/cryptmount personal'
+cryptfile=".cryptofileLUKS"  # used to make sure we have the right loop, match losetup -a
+#command_pre ='losetup -a'
+#losetup --find --show ~/.cryptofileLUKS
+#command = 'cryptsetup luksOpen /dev/loop%s personal'
+
+    #command = preCommands()
+
+    # command = "sudo /sbin/cryptsetup -v luksOpen ~/.cryptofileLUKS personal"
+    # command = "/usr/bin/ssh-keygen -p -f id_rsa.new"
+    # command = "/usr/bin/ssh-keygen -p -f id_rsa_aws1"
+
+    #command = 'sudo echo "Enter passphrase" ; read var ; echo "$var unlocked"'
+lenmin=3
+lenmax=5
 trys=500000
 words = {}  ##Passwords and rules
 wordscount = {} ##Count usage of passwords and placement
@@ -14,16 +30,12 @@ pwdcount=0 ## Counts Passwd try's
     #print( words )
     ##words.append(w[:-1])  ##Add to list, remove newline
     #print( "Word: ",w[:-1] )
-# command = 'openssl rsa -in mysecuresite.com.key -out tmp.key -passin pass:%s'
-#command = '/usr/bin/cryptmount personal'
-cryptfile=".cryptofileLUKS"  # used to make sure we have the right loop, match losetup -a
-command_pre ='losetup -a'
-#losetup --find --show ~/.cryptofileLUKS
-command = 'cryptsetup luksOpen /dev/loop%s personal'
 fout = open("LOG.TXT","w")
 fout.flush()
 timestart = datetime.datetime.now()
 fout.write( f"Started ... {timestart}\n" )
+def main(**kwargs):
+    run(**kwargs)
 
 def loadPasswords(fname='secret-words.txt'):
     global words
@@ -112,7 +124,6 @@ def dumpStats():
             stattotal += sum(wordscount[w]) #total of total
             stat = [sum(pair) for pair in zip(stat, wordscount[w])]  #add vertical
         print(  f"{stattotal} , {stat}  << TOTAL (reloading Pass file)" )
-        loadPasswords() ## Check for new passwd's
 
 def getPassword():
     len_count = random.randint(lenmin,lenmax)
@@ -149,19 +160,12 @@ def getPassword():
         wordscount[w][i] += 1
     return "".join(passwd) , len_count
 
-def main():
+def run(**kwargs):
     global pwdcount
     global command
     dt = False  # Debug
     tt2 = time.time() ##total time
-    loadPasswords()
-    #command = preCommands()
-
-    # command = "sudo /sbin/cryptsetup -v luksOpen ~/.cryptofileLUKS personal"
-    command = "/usr/bin/ssh-keygen -p -f id_rsa.new"
-    #command = "/usr/bin/ssh-keygen -p -f id_rsa_aws1"
-
-    #command = 'sudo echo "Enter passphrase" ; read var ; echo "$var unlocked"'
+    loadPasswords(kwargs['fname'])
     print( f"Command={command}" )
     fout.write( "Start password try's ... Delta {}\n".format(datetime.datetime.now()-timestart) )
     fout.flush()
@@ -175,10 +179,10 @@ def main():
         i = 1 #Enter pass
         while i == 1:  # 1 => Asking for password
             i = child.expect([pexpect.TIMEOUT
-                            ,'Enter passphrase|Enter old passphrase:' #i=1 , cryptsetup|ssh-keyagent
-                            ,"password for" #i=2 [sudo] password for
-                            ,'No key available with this passphrase.|incorrect passphrase supplied to decrypt private key'
-                            ,'unlocked|Enter new passphrase' #i=4
+                            ,'Enter passphrase|Enter old passphrase:|Enter password for target' #i=1 , cryptsetup|ssh-keyagent
+                            ,"[sudo] password for" #i=2 [sudo] password for
+                            ,'No key available with this passphrase.|incorrect passphrase supplied to decrypt private key|Failed to extract cipher key'
+                            ,'unlocked|e2fsck |Enter new passphrase|clean' #i=4
                             ," already exists"
                             ], timeout=5)
             t3 = time.time()
@@ -203,6 +207,7 @@ def main():
                 #print()
 
                 dumpStats()
+                loadPasswords(kwargs['fname']) ## Check for new passwd's
 
             if i == 2: #[sudo]
                 print( f"Error, need sudo password." )
@@ -235,5 +240,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
-
+    main(fname='secret-words.txt')

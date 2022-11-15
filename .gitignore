@@ -8,3 +8,4 @@ LOG.TXT
 #prevent pwds from being git commited
 secret-words.txt
 
+secret*
